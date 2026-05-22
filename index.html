@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>木作天花板施工模擬器</title>
+  <style>
+    :root {
+      --bg: #f2e8dc;
+      --panel: #fff8ef;
+      --panel-2: #f7eee3;
+      --line: #e4d3c0;
+      --ink: #07142f;
+      --muted: #75685d;
+      --orange: #ff7a32;
+      --blue: #2d64c8;
+      --red: #c2352b;
+      --wood-a: #b7864c;
+      --wood-b: #caa36c;
+      --wood-c: #d0ad78;
+      --board: #e9e6dc;
+      font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 1180px; min-height: 100vh; color: var(--ink); background: var(--bg); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { height: 100vh; display: grid; grid-template-rows: 66px 1fr; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line); }
+    .brand { font-size: 20px; font-weight: 900; white-space: nowrap; }
+    .tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .tools button, .tools a, .unit-pill, .canvas-tools button, .canvas-tools label, .view-badge {
+      height: 38px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #dfcfbd; background: var(--panel);
+      color: var(--ink); border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 800; box-shadow: 0 12px 34px rgba(69,44,22,.08);
+    }
+    .tools a { text-decoration: none; }
+    .tools button.active, .canvas-tools button.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+    .tools button.locked { color: #8b8177; background: #f2e7db; border-color: #dfcfbd; cursor: not-allowed; box-shadow: none; }
+    .tools a#line-link {
+      height: 32px;
+      gap: 6px;
+      padding: 0 10px;
+      font-size: 12px;
+      background: transparent;
+      border: .5px solid #dfcfbd;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .15s;
+      margin-left: auto;
+      box-shadow: none;
+    }
+    .tools a#line-link:hover { background: #fff0e6; }
+    .tools a#line-link .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #06c755;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 286px minmax(620px, 1fr) 300px; }
+    aside { min-height: 0; overflow: auto; background: var(--panel-2); border-right: 1px solid var(--line); }
+    aside.right { border-left: 1px solid var(--line); border-right: 0; }
+    .panel-title { height: 48px; display: flex; align-items: center; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 900; }
+    details { background: var(--panel); border-bottom: 1px solid var(--line); }
+    summary { height: 40px; display: flex; align-items: center; padding: 0 14px; font-weight: 900; cursor: pointer; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    .block { padding: 11px 14px 12px; }
+    .field { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 9px; margin: 7px 0; font-size: 13px; }
+    .stepper { height: 34px; display: flex; align-items: center; gap: 4px; border: 1px solid #decbb8; background: #fff; border-radius: 8px; padding: 0 5px; }
+    .stepper button { width: 25px; height: 25px; border: 1px solid #decbb8; background: #fff6ee; border-radius: 7px; line-height: 1; }
+    .stepper input { width: 100%; min-width: 0; border: 0; outline: 0; text-align: center; background: transparent; color: var(--ink); font-weight: 850; }
+    .select-field {
+      width: 100%;
+      height: 34px;
+      border: 1px solid #decbb8;
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 0 10px;
+      font-weight: 850;
+      outline: 0;
+    }
+    .unit { color: var(--muted); font-size: 11px; }
+    .segmented { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .segmented button { height: 36px; border: 0; border-right: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 850; }
+    .segmented button:last-child { border-right: 0; }
+    .segmented button.active { background: var(--orange); color: #fff; }
+    .stats { margin: 9px 0 0; display: grid; gap: 6px; font-size: 12px; }
+    .stats div { display: flex; justify-content: space-between; gap: 10px; }
+    .stats span:first-child { color: var(--muted); }
+    .stats b { font-weight: 850; }
+    .layer-row { width: 100%; height: 34px; display: grid; grid-template-columns: 22px 1fr 20px; align-items: center; gap: 8px; border: 0; background: transparent; text-align: left; color: var(--ink); font-size: 13px; }
+    .swatch { width: 18px; height: 18px; border: 1px solid #9da6ae; }
+    .layer-icon { width: 20px; height: 20px; position: relative; display: inline-block; }
+    .layer-icon.eye::before { content: ""; position: absolute; left: 2px; top: 5px; width: 16px; height: 10px; border: 1.8px solid #26384d; border-radius: 999px / 80%; background: #fff; }
+    .layer-icon.eye::after { content: ""; position: absolute; left: 7px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: #26384d; }
+    .layer-icon.box::before { content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border: 2px solid #8d98a4; border-radius: 4px; background: #fff; }
+    .viewport { position: relative; min-width: 0; overflow: hidden; background: linear-gradient(rgba(104,72,38,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(104,72,38,.035) 1px, transparent 1px), #f1e4d5; background-size: 28px 28px; }
+    .viewport-toolbar { position: absolute; z-index: 5; top: 14px; left: 14px; display: flex; gap: 6px; padding: 7px; border: 1px solid var(--line); background: rgba(255,248,239,.94); border-radius: 10px; box-shadow: 0 14px 36px rgba(69,44,22,.1); }
+    .viewport-toolbar button { height: 30px; border: 1px solid transparent; background: transparent; border-radius: 7px; padding: 0 10px; font-size: 13px; font-weight: 850; color: var(--ink); }
+    .viewport-toolbar button.active { background: #fff0e6; color: #dd5e1e; border-color: #ff9a60; }
+    .canvas-tools { position: absolute; z-index: 5; top: 16px; right: 16px; display: flex; align-items: center; gap: 8px; }
+    .canvas-tools button, .canvas-tools label, .view-badge { height: 32px; padding: 0 10px; font-size: 12px; }
+    .canvas-tools input { width: 78px; accent-color: var(--orange); }
+    #drawing { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; touch-action: none; }
+    #drawing.dragging { cursor: grabbing; }
+    .status { position: absolute; z-index: 5; left: 16px; bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; max-width: calc(100% - 32px); padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,248,239,.94); box-shadow: 0 14px 36px rgba(69,44,22,.1); color: #3d4650; font-size: 13px; font-weight: 750; }
+    .pan-hint {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 6;
+      width: 224px;
+      min-height: 82px;
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 10px;
+      border: 1px solid rgba(46, 61, 80, .22);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .74);
+      box-shadow: 0 12px 30px rgba(29, 42, 58, .12);
+      pointer-events: none;
+    }
+    .mouse-illustration {
+      position: relative;
+      width: 46px;
+      height: 60px;
+      border: 3px solid #27384b;
+      border-radius: 25px 25px 20px 20px;
+      background: linear-gradient(145deg, #f8fbfd, #d7dee7);
+      box-shadow: inset -5px -8px 14px rgba(39, 56, 75, .12);
+    }
+    .mouse-illustration::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 26px;
+      background: #617184;
+      transform: translateX(-50%);
+    }
+    .mouse-illustration::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      width: 15px;
+      height: 27px;
+      border: 2px solid #27384b;
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(0deg, rgba(47, 111, 194, .25), rgba(47, 111, 194, .25) 4px, transparent 4px, transparent 9px),
+        linear-gradient(#72aaf0, #2f6fc2);
+      transform: translateX(-50%);
+    }
+    .mouse-rays {
+      position: absolute;
+      left: 2px;
+      top: -18px;
+      width: 42px;
+      height: 20px;
+    }
+    .mouse-rays i {
+      position: absolute;
+      bottom: 0;
+      width: 4px;
+      height: 17px;
+      border-radius: 999px;
+      background: #2f6fc2;
+      transform-origin: bottom center;
+    }
+    .mouse-rays i:nth-child(1) { left: 6px; height: 13px; transform: rotate(-38deg); }
+    .mouse-rays i:nth-child(2) { left: 19px; height: 17px; }
+    .mouse-rays i:nth-child(3) { right: 6px; height: 13px; transform: rotate(38deg); }
+    .pan-copy strong {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 8px;
+      background: #2e3d50;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+    .pan-copy b {
+      display: block;
+      margin-top: 6px;
+      color: #2e3d50;
+      font-size: 22px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .arrow-pad {
+      position: absolute;
+      left: 140px;
+      top: 4px;
+      width: 38px;
+      height: 28px;
+      opacity: .82;
+    }
+    .arrow-pad span {
+      position: absolute;
+      width: 0;
+      height: 0;
+      filter: drop-shadow(0 5px 8px rgba(47,111,194,.22));
+    }
+    .arrow-pad .up { left: 12px; top: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #2f6fc2; }
+    .arrow-pad .down { display: none; }
+    .arrow-pad .left { display: none; }
+    .arrow-pad .right { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); background: #fff2e6; font-size: 12px; }
+    td:last-child { color: var(--ink); font-weight: 850; }
+    .step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .step strong { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--orange); color: #fff; font-size: 13px; }
+    .step h3 { margin: 0 0 4px; font-size: 13px; }
+    .step p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .footnote { margin: 14px; padding: 12px; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">木作天花板施工模擬器</div>
+      <div class="tools">
+        <button id="collisionBtn" class="locked" type="button" title="需導入燈位圖，功能未開放">角材碰撞功能(需導入燈位圖) 未開放</button>
+        <button id="axonBtn" type="button">軸測</button>
+        <button id="topBtn" class="active" type="button">俯視</button>
+        <button id="presentationBtn" type="button">展示</button>
+        <button id="dimensionBtn" class="active" type="button">標註</button>
+        <span class="unit-pill">單位：cm</span>
+        <a id="line-link" href="https://line.me/R/ti/p/%40329uzcco" target="_blank" rel="noopener" title="廢棄物清運估價 · LINE @329uzcco">
+          <span class="dot"></span>廢棄物清運估價
+        </a>
+        <button id="importBtn" type="button">匯入</button>
+        <button id="exportBtn" type="button">匯出</button>
+        <input id="fileInput" type="file" accept="application/json" hidden>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside>
+        <div class="panel-title">專案設定</div>
+        <details open>
+          <summary>房間尺寸</summary>
+          <div class="block">
+            <label class="field"><span>長邊</span><span class="stepper"><button data-step="roomLength:-10">-</button><input id="roomLength" type="number" min="180" max="900" value="500"><button data-step="roomLength:10">+</button><span class="unit">cm</span></span></label>
+            <label class="field"><span>短邊</span><span class="stepper"><button data-step="roomWidth:-10">-</button><input id="roomWidth" type="number" min="150" max="700" value="320"><button data-step="roomWidth:10">+</button><span class="unit">cm</span></span></label>
+            <label class="field"><span>板高</span><span class="stepper"><button data-step="slabHeight:-5">-</button><input id="slabHeight" type="number" min="220" max="420" value="280"><button data-step="slabHeight:5">+</button><span class="unit">cm</span></span></label>
+            <label class="field"><span>天花板高</span><span class="stepper"><button data-step="ceilingHeight:-5">-</button><input id="ceilingHeight" type="number" min="180" max="420" value="260"><button data-step="ceilingHeight:5">+</button><span class="unit">cm</span></span></label>
+            <div class="stats">
+              <div><span>吊筋高度</span><b id="hangerHeight">20.0 cm</b></div>
+              <div><span>房間面積</span><b id="areaM2">16.00 m²</b></div>
+              <div><span>坪數</span><b id="areaPing">4.84 坪</b></div>
+            </div>
+          </div>
+        </details>
+        <details open>
+          <summary>主支排版</summary>
+          <div class="block">
+            <div class="segmented">
+              <button data-align="left" type="button">靠左</button>
+              <button data-align="center" class="active" type="button">置中</button>
+              <button data-align="right" type="button">靠右</button>
+            </div>
+            <div class="stats">
+              <div><span>主支中心距</span><b>90.9 cm</b></div>
+              <div><span>副支中心距</span><b>36.36 cm</b></div>
+              <div><span>剩餘收邊</span><b id="remainder">45.5 cm</b></div>
+              <div><span>邊框兼支撐</span><b id="edgeSupport">否</b></div>
+            </div>
+          </div>
+        </details>
+        <details open>
+          <summary>材料規格</summary>
+          <div class="block">
+            <label class="field">
+              <span>角材長度</span>
+              <select id="lumberStockLength" class="select-field">
+                <option value="364">12 尺：約 364 cm</option>
+                <option value="243">8 尺：約 243 cm</option>
+                <option value="212">7 尺：約 212 cm</option>
+                <option value="182">6 尺：約 182 cm</option>
+                <option value="120">4 尺：約 120 cm</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>矽酸鈣板</span>
+              <select id="boardSpec" class="select-field">
+                <option value="3x6-91.5x183">3 × 6 尺：91.5 × 183 cm</option>
+              </select>
+            </label>
+          </div>
+        </details>
+        <details open>
+          <summary>結構圖層</summary>
+          <div id="layerList" class="block"></div>
+        </details>
+      </aside>
+
+      <main class="viewport">
+        <div class="viewport-toolbar">
+          <button class="active" type="button">選取</button>
+          <button type="button">平移</button>
+          <button type="button">縮放</button>
+          <button type="button">量測</button>
+        </div>
+        <div class="canvas-tools">
+          <button id="explodeBtn" type="button">爆炸圖層</button>
+          <label><b id="scaleText">2.0x</b><input id="explosionScale" type="range" min="0.5" max="10" step="0.5" value="2"></label>
+          <span id="viewName" class="view-badge">俯視投影</span>
+        </div>
+        <svg id="drawing" role="img" aria-label="木作天花板結構圖"></svg>
+        <div class="status"><span id="roomStatus">房間尺寸：500 × 320 cm</span><span id="areaStatus">面積：16.00 m² / 4.84 坪</span></div>
+        <div class="pan-hint" aria-hidden="true">
+          <div class="mouse-illustration"><span class="mouse-rays"><i></i><i></i><i></i></span></div>
+          <div class="pan-copy">
+            <strong>按住滑鼠滾輪</strong>
+            <b>平移視角</b>
+          </div>
+          <div class="arrow-pad"><span class="up"></span><span class="down"></span><span class="left"></span><span class="right"></span></div>
+        </div>
+      </main>
+
+      <aside class="right">
+        <details open>
+          <summary>材料用量統計</summary>
+          <table><thead><tr><th>材料</th><th>規格 / 裁切</th><th>數量</th></tr></thead><tbody id="materials"></tbody></table>
+        </details>
+        <details open>
+          <summary>施工步驟</summary>
+          <div class="block">
+            <article class="step"><strong>1</strong><div><h3>牆面指定高度做邊框</h3><p>靠牆邊緣為基準，角材往室內生成。</p></div></article>
+            <article class="step"><strong>2</strong><div><h3>主支跨短邊平接</h3><p>主支中心距等於矽酸鈣板寬度。</p></div></article>
+            <article class="step"><strong>3</strong><div><h3>副支置入主支間</h3><p>副支中心距一尺二，全部對齊。</p></div></article>
+            <article class="step"><strong>4</strong><div><h3>確認框架水平</h3><p>以天花板高作完成面基準，固定吊筋。</p></div></article>
+            <article class="step"><strong>5</strong><div><h3>封矽酸鈣板</h3><p>中間板邊落在主支中心，周邊板邊落在邊框外緣。</p></div></article>
+          </div>
+        </details>
+        <div class="footnote">目前為結構模擬估算，後續可加入釘距、燈槽與裁切最佳化。</div>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const LUMBER = { width: 3.64, height: 3.03 };
+    const BOARD = { width: 91.5, length: 183, thickness: 0.6 };
+    const state = {
+      roomLength: 500,
+      roomWidth: 320,
+      slabHeight: 280,
+      ceilingHeight: 260,
+      lumberStockLength: 364,
+      boardSpec: "3x6-91.5x183",
+      alignment: "center",
+      view: "top",
+      exploded: false,
+      collisionMode: false,
+      presentationMode: false,
+      rotation: 0,
+      explosionScale: 2,
+      viewBoxes: { top: null, axon: null },
+      layers: { room: true, perimeter: true, main: true, secondary: true, hangers: true, boards: true, centerlines: true, dimensions: true }
+    };
+    const layerMeta = [
+      ["room", "房間邊界", "#c9ced3"], ["perimeter", "邊框角材", "#b7864c"], ["main", "主支角材", "#caa36c"],
+      ["secondary", "副支角材", "#d0ad78"], ["hangers", "吊筋", "#caa36c"], ["boards", "矽酸鈣板", "#e9e6dc"], ["centerlines", "中心線", "#2d64c8"], ["dimensions", "尺寸標註", "#c2352b"]
+    ];
+    let rafId = null;
+
+    function clamp(value, min, max) {
+      const number = Number(value);
+      return Number.isNaN(number) ? min : Math.min(max, Math.max(min, number));
+    }
+    function addCut(cuts, length, count) {
+      if (length <= 0 || count <= 0) return;
+      const key = length.toFixed(1);
+      cuts[key] = (cuts[key] || 0) + count;
+    }
+    function computeLayout() {
+      const length = state.roomLength;
+      const width = state.roomWidth;
+      const modules = Math.max(1, Math.floor(length / BOARD.width));
+      const moduleSpan = modules * BOARD.width;
+      const remainder = Math.max(0, length - moduleSpan);
+      const offset = state.alignment === "left" ? 0 : state.alignment === "right" ? remainder : remainder / 2;
+      const supportLines = Array.from({ length: modules + 1 }, (_, index) => offset + index * BOARD.width);
+      const mainCenters = state.alignment === "left" ? supportLines.slice(1) : state.alignment === "right" ? supportLines.slice(0, -1) : supportLines;
+      const baySegments = supportLines.slice(0, -1).map((start, index) => ({ start, end: supportLines[index + 1], center: (start + supportLines[index + 1]) / 2, length: supportLines[index + 1] - start }));
+      const secondaryBaySegments = [...baySegments];
+      if (offset > 0.1) secondaryBaySegments.unshift({ start: 0, end: offset, center: offset / 2, length: offset, partial: true });
+      const tail = length - (offset + moduleSpan);
+      if (tail > 0.1) secondaryBaySegments.push({ start: offset + moduleSpan, end: length, center: offset + moduleSpan + tail / 2, length: tail, partial: true });
+      const secondaryRows = [];
+      for (let z = BOARD.length / 5; z < width - 0.1; z += BOARD.length / 5) secondaryRows.push(z);
+      const boardRows = [];
+      for (let y = 0; y < width - 0.1; y += BOARD.length) boardRows.push({ start: y, length: Math.min(BOARD.length, width - y) });
+      const secondarySupportLines = Array.from(new Set(secondaryBaySegments.flatMap(bay => [bay.start, bay.end]).map(value => Number(value.toFixed(4))))).sort((a, b) => a - b);
+      const boardBaySegments = secondaryBaySegments.filter(bay => bay.length > 0.1);
+      const mainLength = Math.max(0, width - 2 * LUMBER.width);
+      const secondaryCuts = {};
+      secondaryBaySegments.forEach(bay => addCut(secondaryCuts, Math.max(0, bay.length - LUMBER.width), secondaryRows.length));
+      const hangerTargetSpacing = BOARD.length / 5 * 2;
+      const hangerCountPerMain = Math.max(1, Math.round(mainLength / hangerTargetSpacing) + 1);
+      const hangerSpacing = mainLength / (hangerCountPerMain + 1);
+      const hangerRows = Array.from({ length: hangerCountPerMain }, (_, index) => LUMBER.width + hangerSpacing * (index + 1));
+      const hangerPoints = mainCenters.flatMap(x => hangerRows.map(z => ({ x, z })));
+      return {
+        remainder, offset, supportLines, mainCenters, secondaryBaySegments, secondarySupportLines, secondaryRows, boardRows, boardBaySegments, mainLength, hangerRows, hangerPoints, hangerCountPerMain, hangerSpacing,
+        mainCutList: [{ length: mainLength, count: mainCenters.length }],
+        secondaryCutList: Object.entries(secondaryCuts).map(([length, count]) => ({ length: Number(length), count })).sort((a, b) => b.length - a.length),
+        perimeterLength: 2 * (length + width) / 100,
+        boardCount: boardBaySegments.length * boardRows.length,
+        cutBoardCount: boardBaySegments.filter(bay => Math.abs(bay.length - BOARD.width) > 0.1).length * boardRows.length
+      };
+    }
+    function lumberStockName(value = state.lumberStockLength) {
+      const names = {
+        364: "12 尺 / 364 cm",
+        243: "8 尺 / 243 cm",
+        212: "7 尺 / 212 cm",
+        182: "6 尺 / 182 cm",
+        120: "4 尺 / 120 cm"
+      };
+      return names[value] || `${value} cm`;
+    }
+    function boardSpecName(value = state.boardSpec) {
+      const names = {
+        "3x6-91.5x183": "3 × 6 尺 / 91.5 × 183 cm"
+      };
+      return names[value] || "3 × 6 尺 / 91.5 × 183 cm";
+    }
+    function svgEl(name, attrs = {}, parent = document.getElementById("drawing")) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      parent.appendChild(el);
+      return el;
+    }
+    function setViewBox(baseViewBox) {
+      const svg = document.getElementById("drawing");
+      if (!state.viewBoxes[state.view]) state.viewBoxes[state.view] = [...baseViewBox];
+      svg.setAttribute("viewBox", state.viewBoxes[state.view].join(" "));
+    }
+    function resetViewBoxFor(view) { state.viewBoxes[view] = null; }
+
+    function drawTop(layout) {
+      const svg = document.getElementById("drawing");
+      svg.innerHTML = "";
+      const length = state.roomLength;
+      const width = state.roomWidth;
+      const pad = 58;
+      setViewBox([-pad, -pad, length + pad * 2, width + pad * 2]);
+      const defs = svgEl("defs");
+      const wood = svgEl("pattern", { id: "wood", width: 18, height: 18, patternUnits: "userSpaceOnUse" }, defs);
+      svgEl("rect", { width: 18, height: 18, fill: "#caa36c" }, wood);
+      svgEl("path", { d: "M0 5 H18 M0 13 H18", stroke: "#9b6f3c", "stroke-width": .7, opacity: .42 }, wood);
+      const board = svgEl("pattern", { id: "board", width: 12, height: 12, patternUnits: "userSpaceOnUse" }, defs);
+      svgEl("rect", { width: 12, height: 12, fill: "#ece9df" }, board);
+      svgEl("path", { d: "M12 0 L0 12", stroke: "#d0cec4", "stroke-width": .7, opacity: .65 }, board);
+      if (state.layers.room) svgEl("rect", { x: 0, y: 0, width: length, height: width, fill: "#fbfcfd", stroke: "#99a4ae", "stroke-width": 1.1 });
+      if (state.layers.boards) layout.boardBaySegments.forEach(bay => layout.boardRows.forEach(row => svgEl("rect", { x: bay.start, y: row.start, width: bay.length, height: row.length, fill: "url(#board)", stroke: "#7d858c", "stroke-width": .8, opacity: .68 })));
+      if (state.layers.perimeter) {
+        const g = svgEl("g", { fill: "url(#wood)", stroke: "#3b2a17", "stroke-width": .85 });
+        svgEl("rect", { x: 0, y: 0, width: length, height: LUMBER.width }, g);
+        svgEl("rect", { x: 0, y: width - LUMBER.width, width: length, height: LUMBER.width }, g);
+        svgEl("rect", { x: 0, y: 0, width: LUMBER.width, height: width }, g);
+        svgEl("rect", { x: length - LUMBER.width, y: 0, width: LUMBER.width, height: width }, g);
+      }
+      if (state.layers.main) layout.mainCenters.forEach(x => svgEl("rect", { x: x - LUMBER.width / 2, y: LUMBER.width, width: LUMBER.width, height: layout.mainLength, fill: "#caa36c", stroke: "#332414", "stroke-width": .8 }));
+      if (state.layers.secondary) layout.secondaryBaySegments.forEach(bay => layout.secondaryRows.forEach(z => svgEl("rect", { x: bay.start + LUMBER.width / 2, y: z - LUMBER.width / 2, width: Math.max(0, bay.length - LUMBER.width), height: LUMBER.width, fill: "#d0ad78", stroke: "#4a3420", "stroke-width": .7 })));
+      if (state.layers.hangers) {
+        const g = svgEl("g", { fill: "#6f7f8c", stroke: "#ffffff", "stroke-width": 1.1 });
+        layout.hangerPoints.forEach(point => {
+          svgEl("circle", { cx: point.x, cy: point.z, r: 3.2 }, g);
+          svgEl("line", { x1: point.x - 5.5, y1: point.z, x2: point.x + 5.5, y2: point.z, stroke: "#6f7f8c", "stroke-width": 1 }, g);
+          svgEl("line", { x1: point.x, y1: point.z - 5.5, x2: point.x, y2: point.z + 5.5, stroke: "#6f7f8c", "stroke-width": 1 }, g);
+        });
+      }
+      if (state.layers.centerlines) {
+        const g = svgEl("g", { stroke: "#2d64c8", "stroke-width": .8, "stroke-dasharray": "6 5", opacity: .92 });
+        layout.secondarySupportLines.forEach(x => svgEl("line", { x1: x, y1: -18, x2: x, y2: width + 18 }, g));
+        layout.secondaryRows.forEach(y => svgEl("line", { x1: -18, y1: y, x2: length + 18, y2: y }, g));
+      }
+      if (state.layers.dimensions) {
+        const g = svgEl("g", { stroke: "#c2352b", fill: "#c2352b", "font-size": 14, "font-weight": 850 });
+        svgEl("line", { x1: 0, y1: width + 34, x2: length, y2: width + 34 }, g);
+        svgEl("line", { x1: 0, y1: width + 24, x2: 0, y2: width + 44 }, g);
+        svgEl("line", { x1: length, y1: width + 24, x2: length, y2: width + 44 }, g);
+        svgEl("rect", { x: length / 2 - 54, y: width + 38, width: 108, height: 22, rx: 6, fill: "rgba(255,248,239,.88)", stroke: "none" }, g);
+        svgEl("text", { x: length / 2, y: width + 53, "text-anchor": "middle", "font-size": 13, "font-weight": 650, "paint-order": "stroke", "stroke": "#fff8ef", "stroke-width": 3, "stroke-linejoin": "round" }, g).textContent = `長邊 ${length} cm`;
+        svgEl("line", { x1: -34, y1: 0, x2: -34, y2: width }, g);
+        svgEl("line", { x1: -44, y1: 0, x2: -24, y2: 0 }, g);
+        svgEl("line", { x1: -44, y1: width, x2: -24, y2: width }, g);
+        svgEl("rect", { x: -59, y: width / 2 - 54, width: 22, height: 108, rx: 6, fill: "rgba(255,248,239,.88)", stroke: "none" }, g);
+        svgEl("text", { x: -48, y: width / 2, "text-anchor": "middle", transform: `rotate(-90 -48 ${width / 2})`, "font-size": 13, "font-weight": 650, "paint-order": "stroke", "stroke": "#fff8ef", "stroke-width": 3, "stroke-linejoin": "round" }, g).textContent = `短邊 ${width} cm`;
+      }
+    }
+
+    function isoPoint(x, y, z) {
+      const angle = state.view === "axon" ? state.rotation : 0;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const rx = x * cos - z * sin;
+      const rz = x * sin + z * cos;
+      return [(rx - rz) * .86, (rx + rz) * .38 - y];
+    }
+    function shadeColor(hex, percent) {
+      const value = hex.replace("#", "");
+      const num = parseInt(value, 16);
+      const amount = Math.round(2.55 * percent);
+      const r = Math.max(0, Math.min(255, (num >> 16) + amount));
+      const g = Math.max(0, Math.min(255, ((num >> 8) & 255) + amount));
+      const b = Math.max(0, Math.min(255, (num & 255) + amount));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    function drawIsoBox(x, z, w, d, h, y, fill, stroke, opacity = 1) {
+      const p = [
+        isoPoint(x, y, z), isoPoint(x + w, y, z), isoPoint(x + w, y, z + d), isoPoint(x, y, z + d),
+        isoPoint(x, y + h, z), isoPoint(x + w, y + h, z), isoPoint(x + w, y + h, z + d), isoPoint(x, y + h, z + d)
+      ];
+      const group = svgEl("g", { opacity });
+      [
+        [[0,1,2,3], shadeColor(fill, -8)],
+        [[3,2,6,7], shadeColor(fill, -16)],
+        [[1,2,6,5], shadeColor(fill, -11)],
+        [[0,1,5,4], shadeColor(fill, 2)],
+        [[3,0,4,7], shadeColor(fill, -4)],
+        [[4,5,6,7], shadeColor(fill, 10)]
+      ].forEach(([face, faceFill]) => svgEl("polygon", { points: face.map(i => p[i].join(",")).join(" "), fill: faceFill, stroke, "stroke-width": .85, "stroke-linejoin": "round" }, group));
+    }
+    function drawCallout(anchor, label, color, title, detail) {
+      const a = isoPoint(anchor[0], anchor[1], anchor[2]);
+      const b = isoPoint(label[0], label[1], label[2]);
+      svgEl("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: color, "stroke-width": 1.8 });
+      svgEl("circle", { cx: a[0], cy: a[1], r: 4, fill: color, stroke: "#fff8ef", "stroke-width": 2 });
+      const group = svgEl("g");
+      svgEl("rect", { x: b[0] - 56, y: b[1] - 23, width: 112, height: 46, rx: 10, fill: "rgba(255,248,239,.96)", stroke: color, "stroke-width": 1.2 }, group);
+      svgEl("text", { x: b[0], y: b[1] - 4, fill: color, "font-size": 14, "font-weight": 850, "text-anchor": "middle" }, group).textContent = title;
+      svgEl("text", { x: b[0], y: b[1] + 15, fill: "#6b6258", "font-size": 11, "font-weight": 750, "text-anchor": "middle" }, group).textContent = detail;
+    }
+    function drawIsoRod(x, z, y1, y2, color = "#caa36c") {
+      const rodSize = LUMBER.width;
+      drawIsoBox(x - rodSize / 2, z - rodSize / 2, rodSize, rodSize, Math.max(0.1, y2 - y1), y1, color, "#332414", 1);
+    }
+    function drawAxon(layout) {
+      const svg = document.getElementById("drawing");
+      svg.innerHTML = "";
+      const length = state.roomLength;
+      const width = state.roomWidth;
+      const base = Math.max(length, width);
+      setViewBox([-base * .78, -base * .36 - 240, base * 1.56, base * 1.1 + 380]);
+      const ox = -length / 2;
+      const oz = -width / 2;
+      if (state.layers.room) {
+        const pts = [[0,0], [length,0], [length,width], [0,width]].map(p => isoPoint(p[0] + ox, -8, p[1] + oz));
+        svgEl("polygon", { points: pts.map(p => p.join(",")).join(" "), fill: "#fbfcfd", stroke: "#96a2ad", "stroke-width": 1.2 });
+        svgEl("line", { x1: pts[0][0], y1: pts[0][1], x2: pts[2][0], y2: pts[2][1], stroke: "#d4dbe1", "stroke-width": 1 });
+        svgEl("line", { x1: pts[1][0], y1: pts[1][1], x2: pts[3][0], y2: pts[3][1], stroke: "#d4dbe1", "stroke-width": 1 });
+      }
+      const lift = state.exploded ? state.explosionScale : 0;
+      const mainLayerY = 12 * lift;
+      const secondaryLayerY = 24 * lift;
+      const hangerLayerY = 36 * lift;
+      const boardLayerY = 60 * lift;
+      const box = (x, z, w, d, h, y, fill, stroke, opacity) => drawIsoBox(ox + x, oz + z, w, d, h, y, fill, stroke, opacity);
+      if (state.layers.perimeter) {
+        box(0, 0, length, LUMBER.width, LUMBER.height, 0, "#b7864c", "#392817");
+        box(0, width - LUMBER.width, length, LUMBER.width, LUMBER.height, 0, "#b7864c", "#392817");
+        box(0, 0, LUMBER.width, width, LUMBER.height, 0, "#b7864c", "#392817");
+        box(length - LUMBER.width, 0, LUMBER.width, width, LUMBER.height, 0, "#b7864c", "#392817");
+      }
+      if (state.layers.main) layout.mainCenters.forEach(x => box(x - LUMBER.width / 2, LUMBER.width, LUMBER.width, layout.mainLength, LUMBER.height, mainLayerY, "#caa36c", "#332414"));
+      if (state.layers.secondary) layout.secondaryBaySegments.forEach(bay => layout.secondaryRows.forEach(z => box(bay.start + LUMBER.width / 2, z - LUMBER.width / 2, Math.max(0, bay.length - LUMBER.width), LUMBER.width, LUMBER.height, secondaryLayerY, "#d0ad78", "#4a3420")));
+      if (state.layers.hangers) {
+        const hangerHeight = Math.max(0, state.slabHeight - state.ceilingHeight);
+        const hangerBaseY = hangerLayerY + LUMBER.height + 1.5;
+        layout.hangerPoints.forEach(point => drawIsoRod(ox + point.x, oz + point.z, hangerBaseY, hangerBaseY + hangerHeight, "#caa36c"));
+      }
+      if (state.layers.boards) layout.boardBaySegments.forEach(bay => layout.boardRows.forEach(row => box(bay.start, row.start, bay.length, row.length, BOARD.thickness, boardLayerY + 5, "#ece9df", "#7d858c", .72)));
+      if (state.layers.dimensions) {
+        const a = isoPoint(ox, 18, oz + width + 36);
+        const b = isoPoint(ox + length, 18, oz + width + 36);
+        const c = isoPoint(ox - 38, 18, oz);
+        const d = isoPoint(ox - 38, 18, oz + width);
+        svgEl("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: "#c2352b", "stroke-width": 1.4 });
+        svgEl("line", { x1: c[0], y1: c[1], x2: d[0], y2: d[1], stroke: "#c2352b", "stroke-width": 1.4 });
+        svgEl("text", { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 + 22, fill: "#c2352b", "font-size": 13, "font-weight": 650, "text-anchor": "middle", "paint-order": "stroke", "stroke": "#fff8ef", "stroke-width": 3, "stroke-linejoin": "round" }).textContent = `長邊 ${length} cm`;
+        svgEl("text", { x: (c[0] + d[0]) / 2 - 16, y: (c[1] + d[1]) / 2, fill: "#c2352b", "font-size": 13, "font-weight": 650, "text-anchor": "middle", "paint-order": "stroke", "stroke": "#fff8ef", "stroke-width": 3, "stroke-linejoin": "round" }).textContent = `短邊 ${width} cm`;
+      }
+      if (state.presentationMode) {
+        const mainX = layout.mainCenters[Math.min(2, Math.max(0, layout.mainCenters.length - 1))] ?? length / 2;
+        const secondaryZ = layout.secondaryRows[2] ?? width / 2;
+        drawCallout([ox + length - 10, 10, oz + 12], [ox + length + 85, 70, oz - 30], "#b7864c", "邊框角材", "靠牆外緣");
+        drawCallout([ox + mainX, mainLayerY + 14, oz + width / 2], [ox + length + 92, 82 + mainLayerY, oz + width / 2 - 40], "#c99b5c", "主支角材", "跨短邊");
+        drawCallout([ox + layout.offset + BOARD.width * 1.5, secondaryLayerY + 12, oz + secondaryZ], [ox + length * .55, 96 + secondaryLayerY, oz - 68], "#d1aa70", "副支角材", "一尺二");
+        if (layout.hangerPoints.length) {
+          const hanger = layout.hangerPoints[Math.floor(layout.hangerPoints.length / 2)];
+          drawCallout([ox + hanger.x, hangerLayerY + LUMBER.height + 14, oz + hanger.z], [ox + length * .22, 110 + hangerLayerY, oz - 82], "#c99b5c", "吊筋", "依主支配置");
+        }
+        drawCallout([ox + layout.offset + BOARD.width * .5, boardLayerY + 16, oz + BOARD.length * .55], [ox - 82, 110 + boardLayerY, oz + width * .16], "#7d858c", "矽酸鈣板", "封板層");
+      }
+    }
+
+    function render() {
+      const layout = computeLayout();
+      state.view === "top" ? drawTop(layout) : drawAxon(layout);
+      const area = state.roomLength * state.roomWidth / 10000;
+      const ping = area / 3.305785;
+      document.getElementById("hangerHeight").textContent = `${Math.max(0, state.slabHeight - state.ceilingHeight).toFixed(1)} cm`;
+      document.getElementById("areaM2").textContent = `${area.toFixed(2)} m²`;
+      document.getElementById("areaPing").textContent = `${ping.toFixed(2)} 坪`;
+      document.getElementById("remainder").textContent = `${layout.remainder.toFixed(1)} cm`;
+      document.getElementById("edgeSupport").textContent = state.alignment === "center" ? "否" : "是";
+      document.getElementById("roomStatus").textContent = `房間尺寸：${state.roomLength} × ${state.roomWidth} cm`;
+      document.getElementById("areaStatus").textContent = `面積：${area.toFixed(2)} m² / ${ping.toFixed(2)} 坪`;
+      document.getElementById("scaleText").textContent = `${state.explosionScale.toFixed(1)}x`;
+      document.getElementById("topBtn").classList.toggle("active", state.view === "top");
+      document.getElementById("axonBtn").classList.toggle("active", state.view === "axon");
+      document.getElementById("explodeBtn").classList.toggle("active", state.exploded);
+      document.getElementById("collisionBtn").classList.toggle("active", state.collisionMode);
+      document.getElementById("presentationBtn").classList.toggle("active", state.presentationMode);
+      document.getElementById("dimensionBtn").classList.toggle("active", state.layers.dimensions);
+      document.getElementById("viewName").textContent = state.collisionMode ? "碰撞測試模式" : state.presentationMode ? "展示模式" : state.view === "top" ? "俯視投影" : "軸測投影";
+      document.querySelectorAll("[data-align]").forEach(btn => btn.classList.toggle("active", btn.dataset.align === state.alignment));
+      document.getElementById("materials").innerHTML = [
+        `<tr><td>角材原料</td><td>${lumberStockName()}</td><td>待裁切統計</td></tr>`,
+        `<tr><td>邊框</td><td>1.2 × 1 寸</td><td>${layout.perimeterLength.toFixed(1)} m</td></tr>`,
+        ...layout.mainCutList.map(c => `<tr><td>主支</td><td>${c.length.toFixed(1)} cm</td><td>${c.count} 支</td></tr>`),
+        ...layout.secondaryCutList.map(c => `<tr><td>副支</td><td>${c.length.toFixed(1)} cm</td><td>${c.count} 支</td></tr>`),
+        `<tr><td>吊筋</td><td>單支 ${Math.max(0, state.slabHeight - state.ceilingHeight).toFixed(1)} cm</td><td>${layout.hangerPoints.length} 支</td></tr>`,
+        `<tr><td>矽酸鈣板</td><td>${boardSpecName()}</td><td>${layout.boardCount} 張</td></tr>`,
+        `<tr><td>裁切板</td><td>不足板寬</td><td>${layout.cutBoardCount} 張</td></tr>`
+      ].join("");
+    }
+    function syncInputs() {
+      ["roomLength", "roomWidth", "slabHeight", "ceilingHeight"].forEach(id => document.getElementById(id).value = state[id]);
+      document.getElementById("explosionScale").value = state.explosionScale;
+      document.getElementById("lumberStockLength").value = String(state.lumberStockLength);
+      document.getElementById("boardSpec").value = state.boardSpec;
+    }
+    function initLayers() {
+      document.getElementById("layerList").innerHTML = layerMeta.map(([key, label, color]) => `
+        <button class="layer-row" type="button" data-layer="${key}">
+          <span class="layer-icon ${state.layers[key] ? "eye" : "box"}" aria-hidden="true"></span>
+          <span>${label}</span>
+          <i class="swatch" style="background:${color}"></i>
+        </button>`).join("");
+    }
+    function startPresentationLoop() {
+      if (rafId) cancelAnimationFrame(rafId);
+      let last = performance.now();
+      const tick = now => {
+        if (!state.presentationMode) { rafId = null; return; }
+        const delta = now - last;
+        last = now;
+        state.rotation += delta * 0.00055;
+        render();
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    }
+    function installCanvasControls() {
+      const svg = document.getElementById("drawing");
+      let dragging = false;
+      let panDrag = false;
+      let startPoint = null;
+      let startBox = null;
+      const toBox = () => state.viewBoxes[state.view] || svg.getAttribute("viewBox").split(/\s+/).map(Number);
+      const pointerToSvg = (event, box) => {
+        const rect = svg.getBoundingClientRect();
+        return { x: box[0] + (event.clientX - rect.left) / rect.width * box[2], y: box[1] + (event.clientY - rect.top) / rect.height * box[3] };
+      };
+      svg.addEventListener("wheel", event => {
+        event.preventDefault();
+        const box = toBox();
+        const focus = pointerToSvg(event, box);
+        const factor = event.deltaY < 0 ? .88 : 1.14;
+        const nextW = Math.max(120, Math.min(1800, box[2] * factor));
+        const nextH = Math.max(90, Math.min(1400, box[3] * factor));
+        const ratioX = (focus.x - box[0]) / box[2];
+        const ratioY = (focus.y - box[1]) / box[3];
+        state.viewBoxes[state.view] = [focus.x - nextW * ratioX, focus.y - nextH * ratioY, nextW, nextH];
+        svg.setAttribute("viewBox", state.viewBoxes[state.view].join(" "));
+      }, { passive: false });
+      svg.addEventListener("pointerdown", event => {
+        dragging = true;
+        panDrag = event.button === 1 || state.view === "top";
+        svg.classList.add("dragging");
+        svg.setPointerCapture(event.pointerId);
+        startBox = panDrag ? toBox() : [state.rotation, 0, 0, 0];
+        startPoint = { x: event.clientX, y: event.clientY };
+      });
+      svg.addEventListener("pointermove", event => {
+        if (!dragging) return;
+        if (state.view === "axon" && !panDrag) {
+          state.rotation = startBox[0] - (event.clientX - startPoint.x) * 0.01;
+          render();
+          return;
+        }
+        const rect = svg.getBoundingClientRect();
+        const dx = (event.clientX - startPoint.x) / rect.width * startBox[2];
+        const dy = (event.clientY - startPoint.y) / rect.height * startBox[3];
+        state.viewBoxes[state.view] = [startBox[0] - dx, startBox[1] - dy, startBox[2], startBox[3]];
+        svg.setAttribute("viewBox", state.viewBoxes[state.view].join(" "));
+      });
+      const endDrag = event => {
+        dragging = false;
+        panDrag = false;
+        svg.classList.remove("dragging");
+        if (event.pointerId != null && svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+      };
+      svg.addEventListener("pointerup", endDrag);
+      svg.addEventListener("pointercancel", endDrag);
+      svg.addEventListener("auxclick", event => {
+        if (event.button === 1) event.preventDefault();
+      });
+      svg.addEventListener("contextmenu", event => {
+        if (event.button === 1) event.preventDefault();
+      });
+      svg.addEventListener("dblclick", () => { resetViewBoxFor(state.view); render(); });
+    }
+    function resetViewsOnRoomChange() {
+      resetViewBoxFor("top");
+      resetViewBoxFor("axon");
+    }
+
+    document.querySelectorAll("input[type='number']").forEach(input => {
+      input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        state[input.id] = clamp(input.value, Number(input.min), Number(input.max));
+        if (input.id === "roomLength" || input.id === "roomWidth") resetViewsOnRoomChange();
+        if (input.id === "slabHeight") state.ceilingHeight = Math.min(state.ceilingHeight, state.slabHeight);
+        syncInputs();
+        render();
+        input.blur();
+      });
+      input.addEventListener("blur", () => {
+        state[input.id] = clamp(input.value, Number(input.min), Number(input.max));
+        if (input.id === "roomLength" || input.id === "roomWidth") resetViewsOnRoomChange();
+        if (input.id === "slabHeight") state.ceilingHeight = Math.min(state.ceilingHeight, state.slabHeight);
+        syncInputs();
+        render();
+      });
+    });
+    document.querySelectorAll("[data-step]").forEach(button => button.addEventListener("click", () => {
+      const [key, delta] = button.dataset.step.split(":");
+      const input = document.getElementById(key);
+      state[key] = clamp(state[key] + Number(delta), Number(input.min), Number(input.max));
+      if (key === "roomLength" || key === "roomWidth") resetViewsOnRoomChange();
+      if (key === "slabHeight") state.ceilingHeight = Math.min(state.ceilingHeight, state.slabHeight);
+      syncInputs();
+      render();
+    }));
+    document.querySelectorAll("[data-align]").forEach(button => button.addEventListener("click", () => { state.alignment = button.dataset.align; render(); }));
+    document.getElementById("lumberStockLength").addEventListener("change", event => {
+      state.lumberStockLength = Number(event.target.value);
+      render();
+    });
+    document.getElementById("boardSpec").addEventListener("change", event => {
+      state.boardSpec = event.target.value;
+      render();
+    });
+    document.getElementById("topBtn").addEventListener("click", () => { state.view = "top"; state.presentationMode = false; render(); });
+    document.getElementById("axonBtn").addEventListener("click", () => { state.view = "axon"; render(); });
+    document.getElementById("explodeBtn").addEventListener("click", () => { state.exploded = !state.exploded; state.view = "axon"; render(); });
+    document.getElementById("collisionBtn").addEventListener("click", () => {
+      state.collisionMode = false;
+      document.getElementById("viewName").textContent = "角材碰撞功能未開放";
+    });
+    document.getElementById("presentationBtn").addEventListener("click", () => { state.presentationMode = !state.presentationMode; state.view = "axon"; if (state.presentationMode) startPresentationLoop(); render(); });
+    document.getElementById("dimensionBtn").addEventListener("click", () => { state.layers.dimensions = !state.layers.dimensions; initLayers(); render(); });
+    document.getElementById("explosionScale").addEventListener("input", event => {
+      state.explosionScale = Number(event.target.value);
+      state.exploded = true;
+      state.view = "axon";
+      render();
+    });
+    document.getElementById("layerList").addEventListener("click", event => {
+      const button = event.target.closest("[data-layer]");
+      if (!button) return;
+      state.layers[button.dataset.layer] = !state.layers[button.dataset.layer];
+      initLayers();
+      render();
+    });
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ceiling-simulator-settings.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById("importBtn").addEventListener("click", () => document.getElementById("fileInput").click());
+    document.getElementById("fileInput").addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          Object.assign(state, data);
+          syncInputs();
+          initLayers();
+          render();
+        } catch {
+          alert("匯入失敗，請確認 JSON 檔格式。");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    initLayers();
+    syncInputs();
+    installCanvasControls();
+    render();
+  </script>
+</body>
+</html>
